@@ -1,8 +1,7 @@
 import React, {useCallback, useState, useEffect} from 'react';
-import {View, TextInput, StyleSheet, Text, Image} from 'react-native';
+import {View, TextInput, StyleSheet, Text, Image, FlatList} from 'react-native';
 import {searchQuery} from '../services/api';
-import {FlashList} from '@shopify/flash-list';
-import SkeletonContent from 'react-native-skeleton-content';
+import {Skeleton} from './Skeleton';
 
 type ISearchBar = {
   searchValue: string;
@@ -71,19 +70,24 @@ const SearchBar = ({
       />
       <View style={styles.searchResult}>
         {loading ? (
-          <SkeletonContent
-            containerStyle={styles.skeletonContent}
-            isLoading={loading}
-            layout={[
-              {width: '90%', height: 50, marginBottom: 10, borderRadius: 8},
-              {width: '80%', height: 50, marginBottom: 10, borderRadius: 8},
-              {width: '95%', height: 50, marginBottom: 10, borderRadius: 8},
-            ]}
-          />
+          <View>
+            {[...Array(5)].map((_, index) => (
+              <View key={index} style={styles.skeletonContainer}>
+                <Skeleton width={40} height={40} borderRadius={20} />
+                <Skeleton
+                  width="70%"
+                  height={20}
+                  borderRadius={4}
+                  style={styles.skeletonText}
+                />
+              </View>
+            ))}
+          </View>
         ) : (
-          <FlashList
-            data={autoComplete.reverse()}
+          <FlatList
+            data={autoComplete.slice().reverse()}
             keyExtractor={item => item.id.toString()}
+            style={styles.flatlistContent}
             renderItem={({item}) => {
               console.log('rendering item', item);
               return (
@@ -98,7 +102,6 @@ const SearchBar = ({
                 </View>
               );
             }}
-            estimatedItemSize={100}
           />
         )}
       </View>
@@ -121,8 +124,11 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  flatlistContent: {
+    flexGrow: 1,
+  },
   searchResult: {
-    height: '80%',
+    height: 'auto',
     marginBottom: 10,
     marginHorizontal: 10,
     // borderTopEndRadius: 8,
@@ -130,6 +136,16 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
     paddingHorizontal: 10,
     backgroundColor: '#FFF',
+    paddingBottom: 10,
+  },
+  skeletonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+    paddingHorizontal: 10,
+  },
+  skeletonText: {
+    marginLeft: 10,
   },
   itemsContainer: {
     flexDirection: 'row',
