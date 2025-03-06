@@ -1,38 +1,16 @@
 import React, {useState} from 'react';
-import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  useColorScheme,
-  View,
-} from 'react-native';
+import {ScrollView, StatusBar, StyleSheet, View} from 'react-native';
 
-import {Colors, Header} from 'react-native/Libraries/NewAppScreen';
 import SearchBar from './src/components/SearchBar';
 
 function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
   const [searchValue, setSearchValue] = useState('');
 
-  const safePadding = '5%';
-
   return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header />
-        </View>
-
-        <View>
+    <View style={styles.mainContainer}>
+      <StatusBar barStyle={'dark-content'} />
+      <ScrollView>
+        <View style={styles.searchContainer}>
           <SearchBar
             searchValue={searchValue}
             setSearchValue={setSearchValue}
@@ -44,21 +22,13 @@ function App(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  mainContainer: {
+    marginTop: 50,
+    backgroundColor: '#F2F2F2',
+    flex: 1,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  searchContainer: {
+    borderColor: '#F9F9F9',
   },
 });
 
