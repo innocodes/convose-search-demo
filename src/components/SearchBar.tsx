@@ -104,8 +104,9 @@ const SearchBar = ({
           </View>
         ) : (
           <FlatList
-            data={autoComplete.slice().reverse()}
+            data={autoComplete.slice().reverse()} // Show from bottom to top
             keyExtractor={item => item.id.toString()}
+            inverted // Ensures list scrolls from bottom
             style={styles.flatlistContent}
             renderItem={({item}) => {
               console.log('rendering item', item);
@@ -115,9 +116,16 @@ const SearchBar = ({
                     style={styles.itemImage}
                     source={{uri: item?.avatar}}
                   />
-                  <Text style={[styles.itemName, {color: item?.color}]}>
-                    {item?.name}
-                  </Text>
+                  <View>
+                    <Text style={[styles.itemName, {color: item?.color}]}>
+                      {item?.name}
+                    </Text>
+                    {item.secondaryTerm && (
+                      <Text style={styles.secondaryTerm}>
+                        {item.secondaryTerm}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               );
             }}
@@ -180,6 +188,10 @@ const styles = StyleSheet.create({
   },
   itemName: {
     // color: '#000',
+  },
+  secondaryTerm: {
+    fontSize: 14,
+    color: '#888',
   },
 });
 
