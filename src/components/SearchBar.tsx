@@ -29,8 +29,11 @@ const SearchBar = ({
     null,
   );
 
+  const [previousSearch, setPreviousSearch] = useState('');
+
   const beginSearch = useCallback(async () => {
     if (!searchValue.trim()) {
+      console.log('here in return');
       setAutoComplete([]);
       return;
     }
@@ -42,9 +45,10 @@ const SearchBar = ({
       const response = await searchQuery(searchValue, 8, 1);
       const fetchedResults = response?.autocomplete || [];
 
-      setAllResults(fetchedResults);
-      setAutoComplete(response?.autocomplete || []);
+      //   setAllResults(fetchedResults);
+      setAutoComplete(fetchedResults);
       console.log('autocomplete: ', autoComplete);
+      setPreviousSearch(searchValue);
     } catch (e) {
       console.error('Error fetching autocomplete data:', e);
     } finally {
@@ -53,13 +57,18 @@ const SearchBar = ({
   }, [searchValue]);
 
   useEffect(() => {
+    console.log('here in debounce');
     if (debounceTimeout) {
+      console.log('here in debounce 2');
+
       clearTimeout(debounceTimeout);
     }
 
     const timeout = setTimeout(() => {
-      if (allResults.length > 0) {
-        const filteredResults = allResults.filter(
+      beginSearch();
+
+      if (searchValue.startsWith(previousSearch)) {
+        const filteredResults = autoComplete.filter(
           item =>
             item.name.toLowerCase().startsWith(searchValue.toLowerCase()) ||
             (item.secondaryTerm
@@ -74,7 +83,7 @@ const SearchBar = ({
     }, 250);
     setDebounceTimeout(timeout);
     return () => clearTimeout(timeout);
-  }, [searchValue, beginSearch, allResults]);
+  }, [searchValue, beginSearch]);
 
   return (
     <View>
