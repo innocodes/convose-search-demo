@@ -2,6 +2,7 @@ import React, {useCallback, useState, useEffect} from 'react';
 import {View, TextInput, StyleSheet, Text, Image, FlatList} from 'react-native';
 import {searchQuery} from '../services/api';
 import {Skeleton} from './Skeleton';
+import {all} from 'axios';
 
 type ISearchBar = {
   searchValue: string;
@@ -14,6 +15,7 @@ type ISearchItem = {
   id: number;
   name: string;
   type: string;
+  secondaryTerm?: string;
 };
 
 const SearchBar = ({
@@ -21,6 +23,7 @@ const SearchBar = ({
   setSearchValue = () => {},
 }: ISearchBar) => {
   const [autoComplete, setAutoComplete] = useState<ISearchItem[]>([]);
+  const [allResults, setAllResults] = useState<ISearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(
     null,
@@ -28,6 +31,7 @@ const SearchBar = ({
 
   const beginSearch = useCallback(async () => {
     if (!searchValue.trim()) {
+      setAutoComplete([]);
       return;
     }
 
@@ -36,6 +40,9 @@ const SearchBar = ({
     try {
       console.log('triggered search for:', searchValue);
       const response = await searchQuery(searchValue, 8, 1);
+      const fetchedResults = response?.autocomplete || [];
+
+      setAllResults(fetchedResults);
       setAutoComplete(response?.autocomplete || []);
       console.log('autocomplete: ', autoComplete);
     } catch (e) {
@@ -51,11 +58,23 @@ const SearchBar = ({
     }
 
     const timeout = setTimeout(() => {
-      beginSearch();
-    }, 500);
+      if (allResults.length > 0) {
+        const filteredResults = allResults.filter(
+          item =>
+            item.name.toLowerCase().startsWith(searchValue.toLowerCase()) ||
+            (item.secondaryTerm
+              ?.toLowerCase()
+              .startsWith(searchValue.toLowerCase()) ??
+              false),
+        );
+        setAutoComplete(filteredResults);
+      } else {
+        beginSearch();
+      }
+    }, 250);
     setDebounceTimeout(timeout);
     return () => clearTimeout(timeout);
-  }, [searchValue, beginSearch]);
+  }, [searchValue, beginSearch, allResults]);
 
   return (
     <View>
