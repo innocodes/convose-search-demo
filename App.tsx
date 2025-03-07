@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ScrollView, StatusBar, StyleSheet, View} from 'react-native';
+import {StatusBar, StyleSheet, View} from 'react-native';
 
 import SearchBar from './src/components/SearchBar';
 

@@ -299,12 +299,6 @@ const SearchBar = ({
 
   return (
     <View>
-      <TextInput
-        value={searchValue}
-        style={styles.input}
-        onChangeText={text => setSearchValue(text)}
-        placeholder="Search for interests..."
-      />
       <View style={styles.searchResult}>
         {loading ? (
           <View>
@@ -371,6 +365,12 @@ const SearchBar = ({
           />
         )}
       </View>
+      <TextInput
+        value={searchValue}
+        style={styles.input}
+        onChangeText={text => setSearchValue(text)}
+        placeholder="Search for interests..."
+      />
     </View>
   );
 };
@@ -379,8 +379,8 @@ const styles = StyleSheet.create({
   input: {
     height: 40,
     marginHorizontal: 10,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
     paddingHorizontal: 10,
     backgroundColor: '#FFF',
   },
@@ -393,10 +393,9 @@ const styles = StyleSheet.create({
   },
   searchResult: {
     height: 'auto',
-    marginBottom: 10,
     marginHorizontal: 10,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
     paddingHorizontal: 10,
     backgroundColor: '#FFF',
     paddingBottom: 10,
