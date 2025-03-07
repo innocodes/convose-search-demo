@@ -9,14 +9,9 @@ function App(): React.JSX.Element {
   return (
     <View style={styles.mainContainer}>
       <StatusBar barStyle={'light-content'} />
-      <ScrollView>
-        <View style={styles.searchContainer}>
-          <SearchBar
-            searchValue={searchValue}
-            setSearchValue={setSearchValue}
-          />
-        </View>
-      </ScrollView>
+      <View style={styles.searchContainer}>
+        <SearchBar searchValue={searchValue} setSearchValue={setSearchValue} />
+      </View>
     </View>
   );
 }

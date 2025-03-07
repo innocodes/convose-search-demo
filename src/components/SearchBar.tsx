@@ -28,6 +28,7 @@ const SearchBar = ({
   // Current filtered results to display
   const [displayResults, setDisplayResults] = useState<ISearchItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
   const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(
     null,
   );
@@ -38,6 +39,7 @@ const SearchBar = ({
   // Keep track of the last search term that triggered an API call
   const lastApiSearchTerm = useRef('');
   const currentSearchTerm = useRef('');
+  const pendingApiCall = useRef(false);
 
   // Flag to prevent automatic pagination
   const userInitiatedScroll = useRef(false);
@@ -56,63 +58,87 @@ const SearchBar = ({
   };
 
   // Fetch data from API
-  const fetchFromApi = useCallback(async (term: string, page: number = 0) => {
-    // Don't fetch if the term is empty
-    if (!term.trim()) {
-      setDisplayResults([]);
-      return;
-    }
-
-    // Set different loading states based on whether it's initial load or pagination
-    if (page === 0) {
-      setLoading(true);
-      setDisplayResults([]); // Clear results when starting a new search
-    } else {
-      setIsLoadingMore(true);
-    }
-
-    try {
-      const response = await searchQuery(term, 8, page);
-
-      // Make sure the response is for the current search term
-      // This prevents race conditions when typing quickly
-      if (response?.autocomplete && term === currentSearchTerm.current) {
-        // Process the autocomplete items to extract secondary terms from the name
-        const processedItems = response.autocomplete.map(item => {
-          const parsedName = parseInterestName(item.name);
-          return {
-            ...item,
-            name: parsedName.name,
-            secondaryTerm: parsedName.secondaryTerm,
-          };
-        });
-
-        // For pagination, append to existing cache if not on first page
-        if (page > 0) {
-          setAllResults(prev => [...prev, ...processedItems]);
-          setDisplayResults(prev => [...prev, ...processedItems]);
-        } else {
-          setAllResults(processedItems);
-          setDisplayResults(processedItems);
-        }
-
-        setPagesLeft(response.pages_left || 0);
-        lastApiSearchTerm.current = term;
-      }
-    } catch (e) {
-      console.error('Error fetching autocomplete data:', e);
-      if (page === 0) {
-        setAllResults([]);
+  const fetchFromApi = useCallback(
+    async (
+      term: string,
+      page: number = 0,
+      isBackgroundFetch: boolean = false,
+    ) => {
+      if (!term.trim()) {
         setDisplayResults([]);
+        setAllResults([]);
+        return;
       }
-    } finally {
-      if (page === 0) {
-        setLoading(false);
+
+      if (page === 0 && !isBackgroundFetch) {
+        setLoading(true);
+        setDisplayResults([]);
+        setAllResults([]);
+      } else if (isBackgroundFetch) {
+        setBackgroundLoading(true);
       } else {
-        setIsLoadingMore(false);
+        setIsLoadingMore(true);
       }
-    }
-  }, []);
+
+      pendingApiCall.current = true;
+
+      try {
+        const response = await searchQuery(term, 8, page);
+
+        if (response?.autocomplete && term === currentSearchTerm.current) {
+          const processedItems = response.autocomplete.map(item => {
+            const parsedName = parseInterestName(item.name);
+            return {
+              ...item,
+              name: parsedName.name,
+              secondaryTerm: parsedName.secondaryTerm,
+            };
+          });
+
+          if (isBackgroundFetch) {
+            // Use allResults instead of displayResults to prevent duplicates across all stored results
+            const existingIds = new Set(allResults.map(item => item.id));
+
+            // Filter out duplicates
+            const uniqueNewItems = processedItems.filter(
+              item => !existingIds.has(item.id),
+            );
+
+            if (uniqueNewItems.length > 0) {
+              setAllResults(prev => [...prev, ...uniqueNewItems]);
+              setDisplayResults(prev => [...prev, ...uniqueNewItems]);
+            }
+          } else if (page > 0) {
+            setAllResults(prev => [...prev, ...processedItems]);
+            setDisplayResults(prev => [...prev, ...processedItems]);
+          } else {
+            setAllResults(processedItems);
+            setDisplayResults(processedItems);
+          }
+
+          setPagesLeft(response.pages_left || 0);
+          lastApiSearchTerm.current = term;
+        }
+      } catch (e) {
+        console.error('Error fetching autocomplete data:', e);
+        if (page === 0 && !isBackgroundFetch) {
+          setAllResults([]);
+          setDisplayResults([]);
+        }
+      } finally {
+        pendingApiCall.current = false;
+
+        if (page === 0 && !isBackgroundFetch) {
+          setLoading(false);
+        } else if (isBackgroundFetch) {
+          setBackgroundLoading(false);
+        } else {
+          setIsLoadingMore(false);
+        }
+      }
+    },
+    [allResults], // Depend on allResults to ensure uniqueness
+  );
 
   // Filter existing results client-side
   const filterResultsClientSide = useCallback(
@@ -126,7 +152,7 @@ const SearchBar = ({
       const filtered = allResults.filter(item => {
         const nameMatches = item.name
           .toLowerCase()
-          .includes(term.toLowerCase()); // Changed from startsWith to includes for better matches
+          .includes(term.toLowerCase());
         const secondaryMatches = item.secondaryTerm
           ? item.secondaryTerm.toLowerCase().includes(term.toLowerCase())
           : false;
@@ -145,10 +171,14 @@ const SearchBar = ({
   const shouldUseClientSideFilter = useCallback(
     (term: string) => {
       // If we have no previous API results, we must make an API call
-      if (allResults.length === 0) return false;
+      if (allResults.length === 0) {
+        return false;
+      }
 
       // If term is empty, no need for API call
-      if (!term.trim()) return true;
+      if (!term.trim()) {
+        return true;
+      }
 
       // If we have a previous search term and new term is related to it, use client filtering
       if (
@@ -187,6 +217,7 @@ const SearchBar = ({
     const timeout = setTimeout(() => {
       // If search is empty, clear results
       if (!searchValue.trim()) {
+        setAllResults([]);
         setDisplayResults([]);
         return;
       }
@@ -195,8 +226,19 @@ const SearchBar = ({
       if (shouldUseClientSideFilter(searchValue)) {
         const hasResults = filterResultsClientSide(searchValue);
 
+        // If the new term is more specific than the last API call term
+        // Make a background API call to fetch additional potential matches
+        // while still showing the filtered results
+        if (
+          searchValue.length > lastApiSearchTerm.current.length &&
+          searchValue
+            .toLowerCase()
+            .startsWith(lastApiSearchTerm.current.toLowerCase())
+        ) {
+          fetchFromApi(searchValue, 0, true);
+        }
         // If filtering didn't yield enough results, make an API call
-        if (!hasResults) {
+        else if (!hasResults) {
           fetchFromApi(searchValue, 0);
         }
       } else {
@@ -235,6 +277,26 @@ const SearchBar = ({
     }
   };
 
+  // ListHeaderComponent to show background loading state
+  const ListHeaderComponent = useCallback(() => {
+    if (backgroundLoading) {
+      return (
+        <View style={styles.backgroundLoadingContainer}>
+          <View style={styles.skeletonContainer}>
+            <Skeleton width={40} height={40} borderRadius={20} />
+            <Skeleton
+              width="70%"
+              height={20}
+              borderRadius={4}
+              style={styles.skeletonText}
+            />
+          </View>
+        </View>
+      );
+    }
+    return null;
+  }, [backgroundLoading]);
+
   return (
     <View>
       <TextInput
@@ -265,8 +327,10 @@ const SearchBar = ({
             style={styles.flatlistContent}
             onEndReached={loadMoreResults}
             onEndReachedThreshold={0.5}
+            keyboardShouldPersistTaps="handled"
             inverted
             onScroll={handleScroll}
+            ListHeaderComponent={ListHeaderComponent}
             ListFooterComponent={
               isLoadingMore ? (
                 <View style={styles.skeletonContainer}>
@@ -375,6 +439,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     marginLeft: 5,
+  },
+  backgroundLoadingContainer: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  currentSearchText: {
+    fontWeight: '500',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  loadingMoreText: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 
