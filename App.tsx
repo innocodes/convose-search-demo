@@ -8,7 +8,7 @@ function App(): React.JSX.Element {
 
   return (
     <View style={styles.mainContainer}>
-      <StatusBar barStyle={'dark-content'} />
+      <StatusBar barStyle={'light-content'} />
       <ScrollView>
         <View style={styles.searchContainer}>
           <SearchBar
@@ -23,7 +23,7 @@ function App(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   mainContainer: {
-    marginTop: 50,
+    paddingTop: 30,
     backgroundColor: '#F2F2F2',
     flex: 1,
   },
